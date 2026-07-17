@@ -1,0 +1,307 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-gold: var(--gold);
+  --color-gold-light: var(--gold-light);
+  --color-gold-dark: var(--gold-dark);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: var(--font-rajdhani);
+}
+
+:root {
+  --radius: 0.625rem;
+  --font-rajdhani: "Rajdhani", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  /* FAREJO Gold */
+  --gold: oklch(0.72 0.12 85);
+  --gold-light: oklch(0.82 0.10 85);
+  --gold-dark: oklch(0.55 0.12 85);
+
+  /* Light theme */
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.22 0 0);
+  --card: oklch(0.99 0 0);
+  --card-foreground: oklch(0.22 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.22 0 0);
+  --primary: oklch(0.72 0.12 85);
+  --primary-foreground: oklch(0.1 0 0);
+  --secondary: oklch(0.96 0 0);
+  --secondary-foreground: oklch(0.22 0 0);
+  --muted: oklch(0.96 0 0);
+  --muted-foreground: oklch(0.55 0 0);
+  --accent: oklch(0.95 0.03 85);
+  --accent-foreground: oklch(0.22 0 0);
+  --destructive: oklch(0.55 0.22 25);
+  --border: oklch(0.92 0 0);
+  --input: oklch(0.92 0 0);
+  --ring: oklch(0.72 0.12 85);
+  --sidebar-background: oklch(0.07 0 0);
+  --sidebar-foreground: oklch(0.95 0 0);
+  --sidebar-primary: oklch(0.72 0.12 85);
+  --sidebar-primary-foreground: oklch(0.1 0 0);
+  --sidebar-accent: oklch(0.15 0 0);
+  --sidebar-accent-foreground: oklch(0.95 0 0);
+  --sidebar-border: oklch(0.2 0 0);
+  --sidebar-ring: oklch(0.72 0.12 85);
+}
+
+.dark {
+  --background: oklch(0.09 0 0);
+  --foreground: oklch(0.95 0 0);
+  --card: oklch(0.12 0 0);
+  --card-foreground: oklch(0.95 0 0);
+  --popover: oklch(0.12 0 0);
+  --popover-foreground: oklch(0.95 0 0);
+  --primary: oklch(0.72 0.12 85);
+  --primary-foreground: oklch(0.1 0 0);
+  --secondary: oklch(0.18 0 0);
+  --secondary-foreground: oklch(0.95 0 0);
+  --muted: oklch(0.18 0 0);
+  --muted-foreground: oklch(0.65 0 0);
+  --accent: oklch(0.2 0.04 85);
+  --accent-foreground: oklch(0.95 0 0);
+  --destructive: oklch(0.55 0.22 25);
+  --border: oklch(0.22 0 0);
+  --input: oklch(0.22 0 0);
+  --ring: oklch(0.72 0.12 85);
+  --sidebar-background: oklch(0.06 0 0);
+  --sidebar-foreground: oklch(0.95 0 0);
+  --sidebar-primary: oklch(0.72 0.12 85);
+  --sidebar-primary-foreground: oklch(0.1 0 0);
+  --sidebar-accent: oklch(0.15 0 0);
+  --sidebar-accent-foreground: oklch(0.95 0 0);
+  --sidebar-border: oklch(0.18 0 0);
+  --sidebar-ring: oklch(0.72 0.12 85);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-rajdhani);
+    font-size: 16px;
+    letter-spacing: 0.01em;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-rajdhani);
+    font-weight: 700;
+    letter-spacing: 0.03em;
+  }
+}
+
+/* Flex min-size fix */
+.flex {
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Container */
+.container {
+  @apply mx-auto px-4;
+  max-width: 1400px;
+}
+
+/* Gold shimmer animation for header stripe */
+@keyframes gold-shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.gold-shimmer-stripe {
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    #C9A227 0%,
+    #E8C84A 20%,
+    #fff9e6 40%,
+    #E8C84A 60%,
+    #C9A227 80%,
+    #9A7A1A 100%
+  );
+  background-size: 200% auto;
+  animation: gold-shimmer 3s linear infinite;
+}
+
+/* Badge shimmer */
+@keyframes badge-shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.badge-shimmer {
+  background: linear-gradient(
+    90deg,
+    #9A7A1A 0%,
+    #C9A227 30%,
+    #E8C84A 50%,
+    #C9A227 70%,
+    #9A7A1A 100%
+  );
+  background-size: 200% auto;
+  animation: badge-shimmer 2.5s linear infinite;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Generic shimmer for progress bars */
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+/* Pulse animation for LIVE indicator */
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.3); }
+}
+
+.live-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #22c55e;
+  animation: live-pulse 1.5s ease-in-out infinite;
+}
+
+/* Logo pulse */
+@keyframes logo-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.75; }
+}
+
+.logo-pulse {
+  animation: logo-pulse 2s ease-in-out infinite;
+}
+
+/* Kanban card drag */
+.kanban-card {
+  transition: transform 150ms cubic-bezier(0.23, 1, 0.32, 1), box-shadow 150ms ease;
+}
+.kanban-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px -4px rgba(201, 162, 39, 0.18);
+}
+
+/* Task status cycle button */
+.status-btn {
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.status-btn:active {
+  transform: scale(0.92);
+}
+
+/* Funnel step */
+.funnel-step {
+  transition: transform 200ms cubic-bezier(0.23, 1, 0.32, 1), filter 200ms ease;
+}
+.funnel-step:hover {
+  transform: scaleX(1.01);
+  filter: brightness(1.08);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: oklch(0.72 0.12 85 / 0.5); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: oklch(0.72 0.12 85 / 0.8); }
+
+/* Toast override */
+[data-sonner-toaster] [data-type="success"] {
+  border-left: 3px solid #C9A227 !important;
+}
+[data-sonner-toaster] [data-type="error"] {
+  border-left: 3px solid #C53030 !important;
+}
+
+/* Shimmer slide for topbar accent stripe */
+@keyframes shimmerSlide {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+
+/* Sidebar nav active indicator */
+@keyframes navActiveIn {
+  from { opacity: 0; transform: scaleY(0.5); }
+  to   { opacity: 1; transform: scaleY(1); }
+}
+
+/* Dashboard KPI card hover */
+.kpi-card {
+  transition: transform 180ms cubic-bezier(0.23, 1, 0.32, 1), box-shadow 180ms ease, border-color 180ms ease;
+}
+.kpi-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px -8px rgba(201, 162, 39, 0.22);
+}
+
+/* Channel progress bar fill animation */
+@keyframes barFill {
+  from { width: 0%; }
+  to   { width: var(--bar-width); }
+}
+.channel-bar {
+  animation: barFill 0.8s cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+/* Quick access button */
+.quick-btn {
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease;
+}
+.quick-btn:hover {
+  transform: translateY(-2px);
+}
+.quick-btn:active {
+  transform: scale(0.96);
+}
+
+/* KPI card hover */
+.kpi-card {
+  transition: transform 150ms cubic-bezier(0.23, 1, 0.32, 1), box-shadow 150ms ease-out, border-color 150ms ease-out;
+}
+.kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(201, 162, 39, 0.12);
+  border-color: rgba(201, 162, 39, 0.35);
+}
+
+/* Hide scrollbar but keep scroll */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
