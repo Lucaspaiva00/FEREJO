@@ -129,7 +129,6 @@ const TABS = [
   { id: "dashboard", label: "Visão Geral", Icon: IconDashboard },
   { id: "checklist", label: "Tarefas", Icon: IconChecklist },
   { id: "campaigns", label: "Campanhas", Icon: IconCampaigns },
-  { id: "funnel", label: "Indicadores", Icon: IconFunnel },
   { id: "strategies", label: "Estratégias", Icon: IconStrategies },
   { id: "commercial", label: "Comercial", Icon: IconCommercial },
   { id: "agenda", label: "Agenda", Icon: IconAgenda },

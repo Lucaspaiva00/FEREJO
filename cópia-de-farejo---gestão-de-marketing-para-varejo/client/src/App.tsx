@@ -12,7 +12,6 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Checklist from "./pages/Checklist";
 import Campaigns from "./pages/Campaigns";
-import Funnel from "./pages/Funnel";
 import Settings from "./pages/Settings";
 import Admin from "./pages/Admin";
 import Strategies from "./pages/Strategies";
@@ -47,7 +46,6 @@ function AppContent() {
       case "dashboard": return <Dashboard />;
       case "checklist": return <Checklist />;
       case "campaigns": return <Campaigns />;
-      case "funnel": return <Funnel />;
       case "strategies": return <Strategies />;
       case "commercial": return <Commercial />;
       case "agenda": return <Agenda />;

@@ -1337,11 +1337,11 @@ function DashboardQuickAccess() {
   const { setActiveTab } = useApp();
 
   const actions = [
-    { icon: "📢", label: "Criar Campanha", tab: "campanhas" as const },
+    { icon: "📢", label: "Criar Campanha", tab: "campaigns" as const },
     { icon: "📋", label: "Nova Tarefa", tab: "checklist" as const },
     { icon: "📅", label: "Agendar Post", tab: "conteudos" as const },
-    { icon: "📊", label: "Relatório de Mídia", tab: "relatorios" as const },
-    { icon: "🖼️", label: "Biblioteca de Artes", tab: "midias" as const },
+ //   { icon: "📊", label: "Relatório de Mídia", tab: "relatorios" as const },
+ // { icon: "🖼️", label: "Biblioteca de Artes", tab: "midias" as const },
     { icon: "📆", label: "Agenda", tab: "agenda" as const },
   ];
 
