@@ -309,9 +309,7 @@ export default function Planos() {
                       <span style={{ color: "#4ADE80" }}>economize 15%</span>
                     </div>
                   )}
-                  <div className="text-xs text-white/30 mt-1">
-                    Até <strong className="text-white/60">{plan.maxLojas === 20 ? "20" : plan.maxLojas}</strong> {plan.maxLojas === 1 ? "loja" : "lojas"}
-                  </div>
+                  
                 </div>
 
                 {/* Features */}
