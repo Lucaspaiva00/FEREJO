@@ -1,4 +1,11 @@
-import { and, eq, inArray, desc, asc } from "drizzle-orm";
+import {
+  and,
+  eq,
+  ne,
+  inArray,
+  desc,
+  asc,
+} from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   users, tenants, userTenants, userSettings,
@@ -61,13 +68,38 @@ export async function upsertUser(user: InsertUser): Promise<void> {
   await db.insert(users).values(values).onDuplicateKeyUpdate({ set: updateSet });
 }
 
+
 export async function getUserByOpenId(openId: string) {
   const db = await getDb();
-  if (!db) return undefined;
-  const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
+
+  if (!db) {
+    return undefined;
+  }
+
+  const result = await db
+    .select()
+    .from(users)
+    .where(eq(users.openId, openId))
+    .limit(1);
+
   return result[0];
 }
 
+export async function getUserById(userId: number) {
+  const db = await getDb();
+
+  if (!db) {
+    return undefined;
+  }
+
+  const result = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  return result[0];
+}
 export async function getAllUsers() {
   const db = await getDb();
   if (!db) return [];
@@ -349,6 +381,32 @@ export async function getTasks(tenantId: number) {
     .from(tasks)
     .where(eq(tasks.tenantId, tenantId))
     .orderBy(asc(tasks.position), asc(tasks.createdAt));
+}
+
+export async function getPendingTasksForUser(
+  tenantId: number,
+  userId: number
+) {
+  const db = await getDb();
+
+  if (!db) {
+    return [];
+  }
+
+  return db
+    .select()
+    .from(tasks)
+    .where(
+      and(
+        eq(tasks.tenantId, tenantId),
+        eq(tasks.responsibleUserId, userId),
+        ne(tasks.status, "done")
+      )
+    )
+    .orderBy(
+      asc(tasks.position),
+      asc(tasks.createdAt)
+    );
 }
 
 export async function createTask(data: InsertTask) {
@@ -1117,6 +1175,57 @@ export async function getWhatsappPrefsForTaskNotif(tenantId: number): Promise<Wh
       eq(whatsappPrefs.enabled, 1),
       eq(whatsappPrefs.notifNovaTarefa, 1),
     ));
+}
+
+export async function getWhatsappPrefsForAssignedTask(
+  userId: number,
+  tenantId: number
+): Promise<WhatsappPrefs | null> {
+  const db = await getDb();
+
+  if (!db) {
+    return null;
+  }
+
+  const rows = await db
+    .select()
+    .from(whatsappPrefs)
+    .where(
+      and(
+        eq(whatsappPrefs.userId, userId),
+        eq(whatsappPrefs.tenantId, tenantId),
+        eq(whatsappPrefs.enabled, 1),
+        eq(whatsappPrefs.notifNovaTarefa, 1)
+      )
+    )
+    .limit(1);
+
+  return rows[0] ?? null;
+}
+
+export async function markWhatsappDailySummarySent(
+  userId: number,
+  tenantId: number,
+  date: string
+) {
+  const db = await getDb();
+
+  if (!db) {
+    return;
+  }
+
+  await db
+    .update(whatsappPrefs)
+    .set({
+      lastDailySummaryDate: date,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(whatsappPrefs.userId, userId),
+        eq(whatsappPrefs.tenantId, tenantId)
+      )
+    );
 }
 
 // ─── TENANT PLAN ─────────────────────────────────────────────────────────────

@@ -27,7 +27,10 @@ import {
   updateUserAvatar, getUserAvatars, getUsersByTenant,
   getMeetings, getMeetingById, createMeeting, updateMeetingStatus, deleteMeeting,
   getMeetingInvites, upsertMeetingInvites, respondMeetingInvite, getMyMeetingInvites,
-  getWhatsappPrefs, upsertWhatsappPrefs, getWhatsappPrefsForMeetingNotif, getWhatsappPrefsForTaskNotif,
+  getWhatsappPrefs,
+  upsertWhatsappPrefs,
+  getWhatsappPrefsForMeetingNotif,
+  getWhatsappPrefsForAssignedTask,
   getWhatsappPrefsByHorario,
 } from "./db";
 import { sendWhatsApp, buildNewTaskMessage, buildNewMeetingMessage, buildDailySummaryMessage } from "./zapi";
@@ -148,7 +151,7 @@ export const appRouter = router({
       // Return user with their accessible tenants
       const userTenants = await getUserTenants(user.id);
       // Log access on session check (throttled: only once per 30min per user)
-      await logAccess(user.id, undefined, "session").catch(() => {});
+      await logAccess(user.id, undefined, "session").catch(() => { });
       return { ...user, tenants: userTenants };
     }),
     logout: publicProcedure.mutation(({ ctx }) => {
@@ -335,79 +338,261 @@ export const appRouter = router({
   // ── TASKS ─────────────────────────────────────────────────────────────────
   tasks: router({
     list: protectedProcedure
-      .input(z.object({ tenantId: z.number() }))
+      .input(
+        z.object({
+          tenantId: z.number(),
+        })
+      )
       .query(async ({ ctx, input }) => {
-        await assertTenantAccess(ctx.user.id, ctx.user.role, input.tenantId);
-        // Seed default tasks for any empty category (incremental — safe to call every time)
+        await assertTenantAccess(
+          ctx.user.id,
+          ctx.user.role,
+          input.tenantId
+        );
+
         await ensureDefaultTasks(input.tenantId);
+
         return getTasks(input.tenantId);
       }),
+
     create: marketerOrAdminProcedure
-      .input(z.object({
-        tenantId: z.number(),
-        name: z.string().min(1),
-        priority: z.enum(["urgent", "week", "later"]).default("week"),
-        status: z.enum(["pending", "in_progress", "done"]).default("pending"),
-        categoryId: z.number().optional(),
-        responsible: z.string().optional(),
-        recurrence: z.enum(["once", "daily", "weekly"]).default("once"),
-        imageUrl: z.string().optional(),
-        link: z.string().optional(),
-        recurringDays: z.string().optional(),
-      }))
+      .input(
+        z.object({
+          tenantId: z.number(),
+          name: z.string().min(1),
+
+          priority: z
+            .enum(["urgent", "week", "later"])
+            .default("week"),
+
+          status: z
+            .enum(["pending", "in_progress", "done"])
+            .default("pending"),
+
+          categoryId: z.number().optional(),
+
+          responsible: z.string().optional(),
+
+          responsibleUserId: z.number().optional(),
+
+          recurrence: z
+            .enum(["once", "daily", "weekly"])
+            .default("once"),
+
+          imageUrl: z.string().optional(),
+          link: z.string().optional(),
+          recurringDays: z.string().optional(),
+        })
+      )
       .mutation(async ({ ctx, input }) => {
+        await assertTenantAccess(
+          ctx.user.id,
+          ctx.user.role,
+          input.tenantId
+        );
+
+        let responsibleUser:
+          | {
+            id: number;
+            name: string | null;
+          }
+          | undefined;
+
+        if (input.responsibleUserId) {
+          const tenantUsers = await getUsersByTenant(
+            input.tenantId
+          );
+
+          responsibleUser = tenantUsers.find(
+            user => user.id === input.responsibleUserId
+          );
+
+          if (!responsibleUser) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message:
+                "O funcionário selecionado não pertence a este cliente.",
+            });
+          }
+        }
+
+        const responsibleName =
+          responsibleUser?.name?.trim() ||
+          input.responsible?.trim() ||
+          null;
+
         const task = await createTask({
           tenantId: input.tenantId,
-          name: input.name,
+          name: input.name.trim(),
           priority: input.priority,
           categoryId: input.categoryId ?? null,
-          responsible: input.responsible ?? null,
+          responsible: responsibleName,
+          responsibleUserId:
+            responsibleUser?.id ?? null,
           status: input.status,
-          recurrence: input.recurrence as "once" | "daily",
+
+          recurrence: input.recurrence as
+            | "once"
+            | "daily",
+
           imageUrl: input.imageUrl ?? null,
           link: input.link ?? null,
           recurringDays: input.recurringDays ?? null,
         });
-        // Disparar WhatsApp para usuários do tenant com notifNovaTarefa ativo
-        void (async () => {
-          try {
-            const wPrefs = await getWhatsappPrefsForTaskNotif(input.tenantId);
-            for (const pref of wPrefs) {
-              if (!pref.phone) continue;
-              const settings = await getUserSettings(pref.userId, input.tenantId);
-              
-              const tenants = await import("./db").then(m => m.getAllTenants());
-              const tenant = tenants.find((t: { id: number }) => t.id === input.tenantId);
-              const msg = buildNewTaskMessage(input.name, input.priority, tenant?.name ?? "FAREJO");
-              await sendWhatsApp(pref.phone, msg);
+
+        if (responsibleUser) {
+          void (async () => {
+            try {
+              const preferences =
+                await getWhatsappPrefsForAssignedTask(
+                  responsibleUser.id,
+                  input.tenantId
+                );
+
+              if (!preferences?.phone) {
+                return;
+              }
+
+              const tenants = await getAllTenants();
+
+              const tenant = tenants.find(
+                item => item.id === input.tenantId
+              );
+
+              const message = buildNewTaskMessage(
+                input.name.trim(),
+                input.priority,
+                tenant?.name ?? "FAREJO",
+                responsibleUser.name
+              );
+
+              const result = await sendWhatsApp(
+                preferences.phone,
+                message
+              );
+
+              if (!result.success && !result.disabled) {
+                console.error(
+                  `[WhatsApp] Não foi possível notificar o usuário ${responsibleUser.id}:`,
+                  result.error
+                );
+              }
+            } catch (error) {
+              console.error(
+                "[WhatsApp] Erro ao enviar aviso de nova tarefa:",
+                error
+              );
             }
-          } catch {}
-        })();
+          })();
+        }
+
         return task;
       }),
+
     update: marketerOrAdminProcedure
-      .input(z.object({
-        id: z.number(),
-        tenantId: z.number(),
-        name: z.string().optional(),
-        status: z.enum(["pending", "in_progress", "done"]).optional(),
-        priority: z.enum(["urgent", "week", "later"]).optional(),
-        categoryId: z.number().nullable().optional(),
-        responsible: z.string().nullable().optional(),
-        recurrence: z.enum(["once", "daily", "weekly"]).optional(),
-        imageUrl: z.string().nullable().optional(),
-        link: z.string().nullable().optional(),
-        recurringDays: z.string().nullable().optional(),
-      }))
-      .mutation(async ({ input }) => {
-        const { id, tenantId, ...data } = input;
-        return updateTask(id, tenantId, data as Parameters<typeof updateTask>[2]);
+      .input(
+        z.object({
+          id: z.number(),
+          tenantId: z.number(),
+          name: z.string().optional(),
+
+          status: z
+            .enum(["pending", "in_progress", "done"])
+            .optional(),
+
+          priority: z
+            .enum(["urgent", "week", "later"])
+            .optional(),
+
+          categoryId: z.number().nullable().optional(),
+
+          responsible: z.string().nullable().optional(),
+
+          responsibleUserId: z
+            .number()
+            .nullable()
+            .optional(),
+
+          recurrence: z
+            .enum(["once", "daily", "weekly"])
+            .optional(),
+
+          imageUrl: z.string().nullable().optional(),
+          link: z.string().nullable().optional(),
+          recurringDays: z.string().nullable().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        await assertTenantAccess(
+          ctx.user.id,
+          ctx.user.role,
+          input.tenantId
+        );
+
+        const {
+          id,
+          tenantId,
+          responsibleUserId,
+          ...inputData
+        } = input;
+
+        const data: Record<string, unknown> = {
+          ...inputData,
+        };
+
+        if (responsibleUserId === null) {
+          data.responsibleUserId = null;
+          data.responsible = null;
+        }
+
+        if (typeof responsibleUserId === "number") {
+          const tenantUsers = await getUsersByTenant(
+            tenantId
+          );
+
+          const responsibleUser = tenantUsers.find(
+            user => user.id === responsibleUserId
+          );
+
+          if (!responsibleUser) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message:
+                "O funcionário selecionado não pertence a este cliente.",
+            });
+          }
+
+          data.responsibleUserId = responsibleUser.id;
+          data.responsible =
+            responsibleUser.name?.trim() ?? null;
+        }
+
+        return updateTask(
+          id,
+          tenantId,
+          data as Parameters<typeof updateTask>[2]
+        );
       }),
+
     delete: marketerOrAdminProcedure
-      .input(z.object({ id: z.number(), tenantId: z.number() }))
-      .mutation(async ({ input }) => {
+      .input(
+        z.object({
+          id: z.number(),
+          tenantId: z.number(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        await assertTenantAccess(
+          ctx.user.id,
+          ctx.user.role,
+          input.tenantId
+        );
+
         await deleteTask(input.id, input.tenantId);
-        return { success: true };
+
+        return {
+          success: true,
+        };
       }),
   }),
 
@@ -714,7 +899,7 @@ export const appRouter = router({
       .input(z.object({ tenantId: z.number() }))
       .query(async ({ ctx, input }) => {
         await assertTenantAccess(ctx.user.id, ctx.user.role, input.tenantId);
-                return getUsersByTenant(input.tenantId);
+        return getUsersByTenant(input.tenantId);
       }),
   }),
   // ─── MEETINGS ─────────────────────────────────────────────────────────────────────────
@@ -771,13 +956,13 @@ export const appRouter = router({
             for (const pref of wPrefs) {
               if (!pref.phone) continue;
               const settings = await getUserSettings(pref.userId, input.tenantId);
-              
+
               const tenants = await import("./db").then(m => m.getAllTenants());
               const tenant = tenants.find((t: { id: number }) => t.id === input.tenantId);
               const msg = buildNewMeetingMessage(input.title, input.meetingType, new Date(input.scheduledAt), tenant?.name ?? "FAREJO");
               await sendWhatsApp(pref.phone, msg);
             }
-          } catch {}
+          } catch { }
         })();
         return { id: insertId };
       }),

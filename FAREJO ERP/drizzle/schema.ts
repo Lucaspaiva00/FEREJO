@@ -100,23 +100,49 @@ export const tasks = mysqlTable("tasks", {
   tenantId: int("tenantId").notNull(),
   categoryId: int("categoryId"),
   name: varchar("name", { length: 512 }).notNull(),
-  status: mysqlEnum("status", ["pending", "in_progress", "done"]).default("pending").notNull(),
-  priority: mysqlEnum("priority", ["urgent", "week", "later"]).default("week").notNull(),
+
+  status: mysqlEnum("status", [
+    "pending",
+    "in_progress",
+    "done",
+  ])
+    .default("pending")
+    .notNull(),
+
+  priority: mysqlEnum("priority", [
+    "urgent",
+    "week",
+    "later",
+  ])
+    .default("week")
+    .notNull(),
+
   responsible: varchar("responsible", { length: 255 }),
+
+  // Usuário efetivamente responsável pela tarefa.
+  responsibleUserId: int("responsibleUserId"),
+
   position: int("position").default(0),
-  // Recurrence: 'once' = esporádica, 'daily' = renova todo dia
-  recurrence: mysqlEnum("recurrence", ["once", "daily"]).default("once").notNull(),
-  // Image attachment (S3 URL)
+
+  recurrence: mysqlEnum("recurrence", [
+    "once",
+    "daily",
+  ])
+    .default("once")
+    .notNull(),
+
   imageUrl: text("imageUrl"),
-  // Link attachment
   link: text("link"),
-  // Recurring days: JSON array of weekday numbers 0=Sun..6=Sat, used when recurrence='weekly'
   recurringDays: text("recurringDays"),
-  // Alert metadata: links this task to a campaign alert
   alertCampaignId: int("alertCampaignId"),
-  alertDaysBefore: int("alertDaysBefore"), // 45, 15 or 7
+  alertDaysBefore: int("alertDaysBefore"),
+
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+
+  updatedAt: timestamp("updatedAt")
+    .defaultNow()
+    .onUpdateNow()
+    .notNull(),
 });
 
 export type Task = typeof tasks.$inferSelect;
@@ -290,14 +316,42 @@ export const whatsappPrefs = mysqlTable("whatsapp_prefs", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
   tenantId: int("tenantId").notNull(),
-  phone: varchar("phone", { length: 32 }),          // destino das mensagens (+55...)
-  enabled: tinyint("enabled").default(0).notNull(), // ativa/desativa tudo
-  notifNovaTarefa: tinyint("notifNovaTarefa").default(0).notNull(),
-  notifReuniao: tinyint("notifReuniao").default(0).notNull(),
-  notifResumoDiario: tinyint("notifResumoDiario").default(0).notNull(),
-  resumoHorario: varchar("resumoHorario", { length: 5 }).default("08:00").notNull(), // HH:MM
-  heartbeatUid: varchar("heartbeatUid", { length: 128 }), // UID do job heartbeat
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+
+  phone: varchar("phone", { length: 32 }),
+
+  enabled: tinyint("enabled").default(0).notNull(),
+
+  notifNovaTarefa: tinyint("notifNovaTarefa")
+    .default(0)
+    .notNull(),
+
+  notifReuniao: tinyint("notifReuniao")
+    .default(0)
+    .notNull(),
+
+  notifResumoDiario: tinyint("notifResumoDiario")
+    .default(0)
+    .notNull(),
+
+  resumoHorario: varchar("resumoHorario", {
+    length: 5,
+  })
+    .default("08:00")
+    .notNull(),
+
+  heartbeatUid: varchar("heartbeatUid", {
+    length: 128,
+  }),
+
+  // Evita enviar o mesmo resumo mais de uma vez por dia.
+  lastDailySummaryDate: varchar("lastDailySummaryDate", {
+    length: 10,
+  }),
+
+  updatedAt: timestamp("updatedAt")
+    .defaultNow()
+    .onUpdateNow()
+    .notNull(),
 });
 export type WhatsappPrefs = typeof whatsappPrefs.$inferSelect;
 export type InsertWhatsappPrefs = typeof whatsappPrefs.$inferInsert;

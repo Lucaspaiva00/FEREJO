@@ -1,162 +1,463 @@
 /**
- * Z-API WhatsApp Helper
+ * Integração Z-API
  * Documentação: https://developer.z-api.io/
  */
 
-const ZAPI_INSTANCE_ID = "3F570B02B11DB2476A7B2A880C3D74BD";
-const ZAPI_TOKEN = "34C833931809A3204D9A1FDF";
-const ZAPI_BASE_URL = `https://api.z-api.io/instances/${ZAPI_INSTANCE_ID}/token/${ZAPI_TOKEN}`;
+type ZAPIResult = {
+  success: boolean;
+  disabled?: boolean;
+  messageId?: string;
+  error?: string;
+};
 
-/**
- * Normaliza o número de telefone para o formato esperado pela Z-API.
- * Aceita: +55 11 99999-9999, 11999999999, 5511999999999
- * Retorna: 5511999999999 (somente dígitos, com DDI)
- */
+type ZAPIStatus = {
+  configured: boolean;
+  enabled: boolean;
+  connected: boolean;
+  status?: string;
+  error?: string;
+};
+
+function getZAPIConfig() {
+  const instanceId = process.env.ZAPI_INSTANCE_ID?.trim() ?? "";
+  const token = process.env.ZAPI_TOKEN?.trim() ?? "";
+  const clientToken = process.env.ZAPI_CLIENT_TOKEN?.trim() ?? "";
+  const enabled = process.env.ZAPI_ENABLED === "true";
+
+  return {
+    instanceId,
+    token,
+    clientToken,
+    enabled,
+    configured: Boolean(instanceId && token && clientToken),
+  };
+}
+
+function getZAPIBaseUrl() {
+  const config = getZAPIConfig();
+
+  if (!config.configured) {
+    return null;
+  }
+
+  return `https://api.z-api.io/instances/${encodeURIComponent(
+    config.instanceId
+  )}/token/${encodeURIComponent(config.token)}`;
+}
+
 export function normalizePhone(phone: string): string {
   const digits = phone.replace(/\D/g, "");
-  // Se já começa com 55 e tem 12-13 dígitos, está correto
-  if (digits.startsWith("55") && digits.length >= 12) return digits;
-  // Se tem 10-11 dígitos (DDD + número), adiciona 55
-  if (digits.length >= 10 && digits.length <= 11) return `55${digits}`;
+
+  if (digits.startsWith("55") && digits.length >= 12) {
+    return digits;
+  }
+
+  if (digits.length === 10 || digits.length === 11) {
+    return `55${digits}`;
+  }
+
   return digits;
 }
 
-/**
- * Envia uma mensagem de texto via WhatsApp usando a Z-API.
- * @param phone - Número de telefone do destinatário (qualquer formato)
- * @param message - Texto da mensagem
- * @returns { success: boolean; error?: string }
- */
+export function isValidBrazilianPhone(phone: string): boolean {
+  const normalized = normalizePhone(phone);
+
+  return /^55\d{10,11}$/.test(normalized);
+}
+
+export function getZAPIConfigurationStatus() {
+  const config = getZAPIConfig();
+
+  return {
+    configured: config.configured,
+    enabled: config.enabled,
+  };
+}
+
 export async function sendWhatsApp(
   phone: string,
   message: string
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    const normalizedPhone = normalizePhone(phone);
+): Promise<ZAPIResult> {
+  const config = getZAPIConfig();
 
-    const response = await fetch(`${ZAPI_BASE_URL}/send-text`, {
+  if (!config.enabled) {
+    console.log(
+      `[Z-API] Envio ignorado: integração desativada. Destino: ${normalizePhone(
+        phone
+      )}`
+    );
+
+    return {
+      success: false,
+      disabled: true,
+      error: "A integração Z-API está desativada.",
+    };
+  }
+
+  if (!config.configured) {
+    return {
+      success: false,
+      error: "As credenciais da Z-API ainda não foram configuradas.",
+    };
+  }
+
+  const normalizedPhone = normalizePhone(phone);
+
+  if (!isValidBrazilianPhone(normalizedPhone)) {
+    return {
+      success: false,
+      error: "Número de WhatsApp inválido.",
+    };
+  }
+
+  if (!message.trim()) {
+    return {
+      success: false,
+      error: "A mensagem está vazia.",
+    };
+  }
+
+  const baseUrl = getZAPIBaseUrl();
+
+  if (!baseUrl) {
+    return {
+      success: false,
+      error: "Não foi possível montar a URL da Z-API.",
+    };
+  }
+
+  try {
+    const response = await fetch(`${baseUrl}/send-text`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Client-Token": ZAPI_TOKEN,
+        "Client-Token": config.clientToken,
       },
       body: JSON.stringify({
         phone: normalizedPhone,
-        message,
+        message: message.trim(),
       }),
     });
 
-    const data = await response.json() as { zaapId?: string; messageId?: string; error?: string };
+    const data = (await response.json().catch(() => null)) as {
+      zaapId?: string;
+      messageId?: string;
+      id?: string;
+      error?: string;
+      message?: string;
+    } | null;
 
     if (!response.ok) {
-      console.error("[Z-API] Error sending message:", data);
-      return { success: false, error: data?.error ?? `HTTP ${response.status}` };
+      const error =
+        data?.error ??
+        data?.message ??
+        `Erro HTTP ${response.status}`;
+
+      console.error("[Z-API] Falha no envio:", error);
+
+      return {
+        success: false,
+        error,
+      };
     }
 
-    console.log("[Z-API] Message sent:", data);
-    return { success: true };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[Z-API] Exception:", message);
-    return { success: false, error: message };
+    const messageId =
+      data?.messageId ?? data?.zaapId ?? data?.id;
+
+    console.log(
+      `[Z-API] Mensagem enviada para ${normalizedPhone}. ID: ${messageId ?? "não informado"
+      }`
+    );
+
+    return {
+      success: true,
+      messageId,
+    };
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : String(error);
+
+    console.error("[Z-API] Erro de conexão:", errorMessage);
+
+    return {
+      success: false,
+      error: errorMessage,
+    };
   }
 }
 
-/**
- * Verifica o status da instância Z-API.
- */
-export async function checkZAPIStatus(): Promise<{ connected: boolean; status?: string }> {
+export async function checkZAPIStatus(): Promise<ZAPIStatus> {
+  const config = getZAPIConfig();
+
+  if (!config.enabled || !config.configured) {
+    return {
+      configured: config.configured,
+      enabled: config.enabled,
+      connected: false,
+      status: !config.enabled
+        ? "disabled"
+        : "missing_credentials",
+    };
+  }
+
+  const baseUrl = getZAPIBaseUrl();
+
+  if (!baseUrl) {
+    return {
+      configured: false,
+      enabled: config.enabled,
+      connected: false,
+      error: "Configuração inválida.",
+    };
+  }
+
   try {
-    const response = await fetch(`${ZAPI_BASE_URL}/status`, {
-      headers: { "Client-Token": ZAPI_TOKEN },
+    const response = await fetch(`${baseUrl}/status`, {
+      headers: {
+        "Client-Token": config.clientToken,
+      },
     });
-    const data = await response.json() as { connected?: boolean; status?: string };
-    return { connected: data?.connected ?? false, status: data?.status };
-  } catch {
-    return { connected: false };
+
+    const data = (await response.json().catch(() => null)) as {
+      connected?: boolean;
+      status?: string;
+      error?: string;
+    } | null;
+
+    if (!response.ok) {
+      return {
+        configured: true,
+        enabled: true,
+        connected: false,
+        error: data?.error ?? `Erro HTTP ${response.status}`,
+      };
+    }
+
+    return {
+      configured: true,
+      enabled: true,
+      connected: data?.connected === true,
+      status: data?.status,
+    };
+  } catch (error) {
+    return {
+      configured: true,
+      enabled: true,
+      connected: false,
+      error:
+        error instanceof Error ? error.message : String(error),
+    };
   }
 }
 
-// ─── Message Builders ─────────────────────────────────────────────────────────
+type SummaryTask = {
+  name: string;
+  status: string;
+  priority: string;
+};
 
-/**
- * Formata uma mensagem de resumo diário de tarefas e reuniões.
- */
+type SummaryMeeting = {
+  title: string;
+  scheduledAt: Date;
+  meetingType: string;
+};
+
 export function buildDailySummaryMessage(
   tenantName: string,
-  tasks: { name: string; status: string; priority: string }[],
-  meetings: { title: string; scheduledAt: Date; meetingType: string }[]
+  tasks: SummaryTask[],
+  meetings: SummaryMeeting[]
 ): string {
-  const date = new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
-  const lines: string[] = [];
+  const today = new Date();
 
-  lines.push(`📋 *Resumo Diário FAREJO*`);
-  lines.push(`📅 ${date.charAt(0).toUpperCase() + date.slice(1)}`);
-  lines.push(`🏢 ${tenantName}`);
-  lines.push("");
+  const formattedDate = today.toLocaleDateString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+  });
 
-  const activeTasks = tasks.filter((t) => t.status !== "concluida");
-  if (activeTasks.length > 0) {
-    lines.push(`✅ *Tarefas em aberto (${activeTasks.length})*`);
-    const urgentes = activeTasks.filter((t) => t.priority === "urgente");
-    const semana = activeTasks.filter((t) => t.priority === "semana");
-    if (urgentes.length) lines.push(`🔴 Urgentes: ${urgentes.map((t) => t.name).join(", ")}`);
-    if (semana.length) lines.push(`🟡 Esta semana: ${semana.map((t) => t.name).join(", ")}`);
-    const outros = activeTasks.filter((t) => t.priority !== "urgente" && t.priority !== "semana");
-    if (outros.length) lines.push(`⚪ Outras: ${outros.length} tarefa(s)`);
+  const pendingTasks = tasks.filter(
+    task => task.status !== "done"
+  );
+
+  const urgentTasks = pendingTasks.filter(
+    task => task.priority === "urgent"
+  );
+
+  const weekTasks = pendingTasks.filter(
+    task => task.priority === "week"
+  );
+
+  const laterTasks = pendingTasks.filter(
+    task => task.priority === "later"
+  );
+
+  const lines: string[] = [
+    "📋 *Resumo diário FAREJO*",
+    `📅 ${formattedDate.charAt(0).toUpperCase() +
+    formattedDate.slice(1)
+    }`,
+    `🏢 ${tenantName}`,
+    "",
+  ];
+
+  if (pendingTasks.length === 0) {
+    lines.push("✅ Você não possui tarefas pendentes. Parabéns!");
   } else {
-    lines.push(`✅ *Nenhuma tarefa pendente — parabéns!* 🎉`);
+    lines.push(
+      `📌 *Tarefas pendentes: ${pendingTasks.length}*`
+    );
+
+    if (urgentTasks.length > 0) {
+      lines.push("");
+      lines.push("🔴 *Urgentes*");
+
+      urgentTasks.forEach(task => {
+        lines.push(`• ${task.name}`);
+      });
+    }
+
+    if (weekTasks.length > 0) {
+      lines.push("");
+      lines.push("🟡 *Para esta semana*");
+
+      weekTasks.forEach(task => {
+        lines.push(`• ${task.name}`);
+      });
+    }
+
+    if (laterTasks.length > 0) {
+      lines.push("");
+      lines.push("⚪ *Para depois*");
+
+      laterTasks.forEach(task => {
+        lines.push(`• ${task.name}`);
+      });
+    }
   }
 
-  const today = new Date();
-  const todayMeetings = meetings.filter((m) => {
-    const d = new Date(m.scheduledAt);
-    return d.getFullYear() === today.getFullYear() &&
-      d.getMonth() === today.getMonth() &&
-      d.getDate() === today.getDate();
+  const todayKey = today.toLocaleDateString("en-CA", {
+    timeZone: "America/Sao_Paulo",
+  });
+
+  const todayMeetings = meetings.filter(meeting => {
+    const meetingKey = new Date(
+      meeting.scheduledAt
+    ).toLocaleDateString("en-CA", {
+      timeZone: "America/Sao_Paulo",
+    });
+
+    return meetingKey === todayKey;
   });
 
   if (todayMeetings.length > 0) {
     lines.push("");
-    lines.push(`📆 *Reuniões de hoje (${todayMeetings.length})*`);
-    todayMeetings.forEach((m) => {
-      const hora = new Date(m.scheduledAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-      const tipo = m.meetingType === "estrategico" ? "🎯 Estratégica" : "⚙️ Operacional";
-      lines.push(`${tipo} — ${m.title} às ${hora}`);
+    lines.push(
+      `📆 *Reuniões de hoje: ${todayMeetings.length}*`
+    );
+
+    todayMeetings.forEach(meeting => {
+      const time = new Date(
+        meeting.scheduledAt
+      ).toLocaleTimeString("pt-BR", {
+        timeZone: "America/Sao_Paulo",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
+      const type =
+        meeting.meetingType === "estrategico"
+          ? "🎯 Estratégica"
+          : "⚙️ Operacional";
+
+      lines.push(`• ${type}: ${meeting.title} às ${time}`);
     });
   }
 
   lines.push("");
-  lines.push(`_Enviado pelo FAREJO — Gestão de Marketing para Varejo_`);
+  lines.push(
+    "_Enviado pelo FAREJO — Gestão de Marketing para Varejo_"
+  );
+
   return lines.join("\n");
 }
 
-/**
- * Formata mensagem de nova tarefa criada.
- */
-export function buildNewTaskMessage(taskName: string, priority: string, tenantName: string): string {
-  const prioEmoji = priority === "urgente" ? "🔴" : priority === "semana" ? "🟡" : "⚪";
-  return `${prioEmoji} *Nova tarefa criada no FAREJO*\n\n📋 ${taskName}\n🏢 ${tenantName}\n\n_Acesse o FAREJO para gerenciar._`;
+export function buildNewTaskMessage(
+  taskName: string,
+  priority: string,
+  tenantName: string,
+  responsible?: string | null
+): string {
+  const priorityEmoji =
+    priority === "urgent"
+      ? "🔴"
+      : priority === "week"
+        ? "🟡"
+        : "⚪";
+
+  const lines = [
+    `${priorityEmoji} *Nova tarefa no FAREJO*`,
+    "",
+    `📋 ${taskName}`,
+    `🏢 ${tenantName}`,
+  ];
+
+  if (responsible) {
+    lines.push(`👤 Responsável: ${responsible}`);
+  }
+
+  lines.push("");
+  lines.push("_Acesse o FAREJO para visualizar._");
+
+  return lines.join("\n");
 }
 
-/**
- * Formata mensagem de nova reunião agendada.
- */
 export function buildNewMeetingMessage(
   title: string,
   meetingType: string,
   scheduledAt: Date,
   tenantName: string
 ): string {
-  const tipo = meetingType === "estrategico" ? "🎯 Estratégica" : "⚙️ Operacional";
-  const data = scheduledAt.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" });
-  const hora = scheduledAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-  return `📅 *Reunião ${tipo} agendada no FAREJO*\n\n📌 ${title}\n🏢 ${tenantName}\n🕐 ${data} às ${hora}\n\n_Confirme sua presença na aba Agenda._`;
+  const type =
+    meetingType === "estrategico"
+      ? "🎯 Estratégica"
+      : "⚙️ Operacional";
+
+  const date = scheduledAt.toLocaleDateString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit",
+  });
+
+  const time = scheduledAt.toLocaleTimeString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  return [
+    `📅 *Nova reunião ${type}*`,
+    "",
+    `📌 ${title}`,
+    `🏢 ${tenantName}`,
+    `🕐 ${date} às ${time}`,
+    "",
+    "_Acesse a agenda do FAREJO para visualizar._",
+  ].join("\n");
 }
 
-/**
- * Formata mensagem de lembrete de reunião (30 min antes).
- */
-export function buildMeetingReminderMessage(title: string, hora: string, tenantName: string): string {
-  return `⏰ *Lembrete FAREJO*\n\nSua reunião *${title}* começa em 30 minutos (${hora}).\n🏢 ${tenantName}\n\n_Boa reunião!_`;
+export function buildMeetingReminderMessage(
+  title: string,
+  time: string,
+  tenantName: string
+): string {
+  return [
+    "⏰ *Lembrete FAREJO*",
+    "",
+    `A reunião *${title}* começa em 30 minutos (${time}).`,
+    `🏢 ${tenantName}`,
+    "",
+    "_Boa reunião!_",
+  ].join("\n");
 }
