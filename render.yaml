@@ -1,6 +1,6 @@
 databases:
   - name: farejo-db
-    plan: starter
+    plan: basic-256mb
     databaseName: farejo
     user: farejo
 
