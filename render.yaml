@@ -1,0 +1,49 @@
+databases:
+  - name: farejo-db
+    plan: starter
+    databaseName: farejo
+    user: farejo
+
+services:
+  - type: web
+    name: farejo-erp
+    runtime: docker
+    plan: starter
+    dockerfilePath: FAREJO ERP/Dockerfile
+    dockerContext: FAREJO ERP
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3000"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: farejo-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: VITE_APP_ID
+        sync: false
+      - key: VITE_OAUTH_PORTAL_URL
+        sync: false
+      - key: OAUTH_SERVER_URL
+        sync: false
+      - key: OWNER_OPEN_ID
+        sync: false
+      - key: BUILT_IN_FORGE_API_URL
+        sync: false
+      - key: BUILT_IN_FORGE_API_KEY
+        sync: false
+      - key: VITE_FRONTEND_FORGE_API_URL
+        sync: false
+      - key: VITE_FRONTEND_FORGE_API_KEY
+        sync: false
+      - key: ZAPI_ENABLED
+        sync: false
+      - key: ZAPI_INSTANCE_ID
+        sync: false
+      - key: ZAPI_TOKEN
+        sync: false
+      - key: ZAPI_CLIENT_TOKEN
+        sync: false

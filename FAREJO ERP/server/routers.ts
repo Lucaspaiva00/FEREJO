@@ -674,8 +674,8 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         return createCampaign({
           ...input,
-          startDate: input.startDate as unknown as Date,
-          endDate: input.endDate as unknown as Date,
+          startDate: input.startDate,
+          endDate: input.endDate,
         });
       }),
     createBulk: marketerOrAdminProcedure
@@ -696,8 +696,8 @@ export const appRouter = router({
             tenantId: input.tenantId,
             name: c.name,
             campType: c.campType,
-            startDate: c.startDate as unknown as Date,
-            endDate: c.endDate as unknown as Date,
+            startDate: c.startDate,
+            endDate: c.endDate,
             tema: c.tema ?? null,
           });
           if (result) results.push(result);
@@ -1016,10 +1016,10 @@ export const appRouter = router({
           userId: ctx.user.id,
           tenantId: input.tenantId,
           phone: input.phone ?? null,
-          enabled: input.enabled ? 1 : 0,
-          notifNovaTarefa: input.notifNovaTarefa ? 1 : 0,
-          notifReuniao: input.notifReuniao ? 1 : 0,
-          notifResumoDiario: input.notifResumoDiario ? 1 : 0,
+          enabled: input.enabled,
+          notifNovaTarefa: input.notifNovaTarefa,
+          notifReuniao: input.notifReuniao,
+          notifResumoDiario: input.notifResumoDiario,
           resumoHorario: input.resumoHorario,
         });
       }),

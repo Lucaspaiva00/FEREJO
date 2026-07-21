@@ -6,7 +6,8 @@ import {
   desc,
   asc,
 } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
+import { drizzle } from "drizzle-orm/node-postgres";
+import pg from "pg";
 import {
   users, tenants, userTenants, userSettings,
   taskCategories, tasks, dashboardMetrics, campaigns, accessLogs,
@@ -22,15 +23,18 @@ import {
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
+let _pool: pg.Pool | null = null;
 let _db: ReturnType<typeof drizzle> | null = null;
 
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      _pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+      _db = drizzle(_pool);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
+      _pool = null;
     }
   }
   return _db;
@@ -65,7 +69,10 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     updateSet.role = "admin";
   }
 
-  await db.insert(users).values(values).onDuplicateKeyUpdate({ set: updateSet });
+  await db.insert(users).values(values).onConflictDoUpdate({
+    target: users.openId,
+    set: updateSet,
+  });
 }
 
 
@@ -1041,10 +1048,8 @@ export async function getMeetingById(id: number) {
 export async function createMeeting(data: InsertMeeting): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
-  const result = await db.insert(meetings).values(data);
-  // Drizzle MySQL returns [ResultSetHeader, FieldPacket[]] — insertId is in result[0]
-  const header = (result as any)[0] ?? result as any;
-  return (header.insertId ?? 0) as number;
+  const [row] = await db.insert(meetings).values(data).returning({ id: meetings.id });
+  return row?.id ?? 0;
 }
 
 export async function updateMeetingStatus(id: number, status: "agendada" | "confirmada" | "cancelada" | "realizada") {
@@ -1147,8 +1152,8 @@ export async function getWhatsappPrefsByHorario(horario: string): Promise<Whatsa
   if (!db) return [];
   return db.select().from(whatsappPrefs)
     .where(and(
-      eq(whatsappPrefs.enabled, 1),
-      eq(whatsappPrefs.notifResumoDiario, 1),
+      eq(whatsappPrefs.enabled, true),
+      eq(whatsappPrefs.notifResumoDiario, true),
       eq(whatsappPrefs.resumoHorario, horario),
     ));
 }
@@ -1160,8 +1165,8 @@ export async function getWhatsappPrefsForMeetingNotif(tenantId: number): Promise
   return db.select().from(whatsappPrefs)
     .where(and(
       eq(whatsappPrefs.tenantId, tenantId),
-      eq(whatsappPrefs.enabled, 1),
-      eq(whatsappPrefs.notifReuniao, 1),
+      eq(whatsappPrefs.enabled, true),
+      eq(whatsappPrefs.notifReuniao, true),
     ));
 }
 
@@ -1172,8 +1177,8 @@ export async function getWhatsappPrefsForTaskNotif(tenantId: number): Promise<Wh
   return db.select().from(whatsappPrefs)
     .where(and(
       eq(whatsappPrefs.tenantId, tenantId),
-      eq(whatsappPrefs.enabled, 1),
-      eq(whatsappPrefs.notifNovaTarefa, 1),
+      eq(whatsappPrefs.enabled, true),
+      eq(whatsappPrefs.notifNovaTarefa, true),
     ));
 }
 
@@ -1194,8 +1199,8 @@ export async function getWhatsappPrefsForAssignedTask(
       and(
         eq(whatsappPrefs.userId, userId),
         eq(whatsappPrefs.tenantId, tenantId),
-        eq(whatsappPrefs.enabled, 1),
-        eq(whatsappPrefs.notifNovaTarefa, 1)
+        eq(whatsappPrefs.enabled, true),
+        eq(whatsappPrefs.notifNovaTarefa, true)
       )
     )
     .limit(1);

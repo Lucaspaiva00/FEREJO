@@ -1,0 +1,42 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: farejo
+      POSTGRES_PASSWORD: farejo
+      POSTGRES_DB: farejo
+    ports:
+      - "5432:5432"
+    volumes:
+      - farejo_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U farejo -d farejo"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: ./FAREJO ERP
+      dockerfile: Dockerfile
+      args:
+        VITE_APP_ID: ${VITE_APP_ID:-farejo-local}
+        VITE_OAUTH_PORTAL_URL: ${VITE_OAUTH_PORTAL_URL:-http://localhost:3000}
+        VITE_FRONTEND_FORGE_API_URL: ${VITE_FRONTEND_FORGE_API_URL:-https://forge.butterfly-effect.dev}
+        VITE_FRONTEND_FORGE_API_KEY: ${VITE_FRONTEND_FORGE_API_KEY:-}
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    env_file:
+      - ./FAREJO ERP/.env
+    environment:
+      DATABASE_URL: postgresql://farejo:farejo@db:5432/farejo
+      NODE_ENV: production
+      PORT: 3000
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  farejo_postgres_data:

@@ -1,89 +1,12 @@
 {
   "version": "7",
-  "dialect": "mysql",
+  "dialect": "postgresql",
   "entries": [
     {
       "idx": 0,
-      "version": "5",
-      "when": 1782148760092,
-      "tag": "0000_parallel_shape",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "5",
-      "when": 1782149101539,
-      "tag": "0001_lyrical_ma_gnuci",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "5",
-      "when": 1782150851116,
-      "tag": "0002_nosy_silver_fox",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "5",
-      "when": 1782164440873,
-      "tag": "0003_boring_phalanx",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "5",
-      "when": 1782168185747,
-      "tag": "0004_careful_phil_sheldon",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "5",
-      "when": 1782216327359,
-      "tag": "0005_light_runaways",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "5",
-      "when": 1782297315695,
-      "tag": "0006_spicy_kid_colt",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "5",
-      "when": 1782305657564,
-      "tag": "0007_hard_solo",
-      "breakpoints": true
-    },
-    {
-      "idx": 8,
-      "version": "5",
-      "when": 1782520592554,
-      "tag": "0008_overjoyed_mercury",
-      "breakpoints": true
-    },
-    {
-      "idx": 9,
-      "version": "5",
-      "when": 1782848033343,
-      "tag": "0009_lonely_mesmero",
-      "breakpoints": true
-    },
-    {
-      "idx": 10,
-      "version": "5",
-      "when": 1782864110492,
-      "tag": "0010_hesitant_silver_surfer",
-      "breakpoints": true
-    },
-    {
-      "idx": 11,
-      "version": "5",
-      "when": 1784501091750,
-      "tag": "0011_fixed_ender_wiggin",
+      "version": "7",
+      "when": 1784588009411,
+      "tag": "0000_init_postgres",
       "breakpoints": true
     }
   ]

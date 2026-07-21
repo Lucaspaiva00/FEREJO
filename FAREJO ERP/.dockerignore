@@ -1,0 +1,13 @@
+node_modules
+dist
+.env
+.env.*
+.git
+.gitignore
+.manus-logs
+coverage
+*.log
+*.md
+todo.md
+references
+webdev
