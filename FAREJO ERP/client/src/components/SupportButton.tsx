@@ -33,9 +33,9 @@ const IconX = () => (
 export default function SupportButton() {
   const [open, setOpen] = useState(false);
 
-  const WHATSAPP_NUMBER = "5519997537883";
+  const WHATSAPP_NUMBER = "5519996892382";
   const WHATSAPP_MESSAGE = encodeURIComponent("Olá, eu preciso de suporte.");
-  const PHONE_NUMBER = "tel:+5519997537883";
+  const PHONE_NUMBER = "tel:+5519996892382";
   const VIDEO_LINK = ""; // Configurar link de videoconferência quando disponível
 
   const options = [

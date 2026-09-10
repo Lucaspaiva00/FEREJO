@@ -147,7 +147,7 @@ function UpgradeModal({
           </Button>
           <Button
             onClick={() => {
-              window.open("https://wa.me/5519997537883?text=Olá, quero fazer upgrade do meu plano FAREJO!", "_blank");
+              window.open("https://wa.me/5519996892382?text=Olá, quero fazer upgrade do meu plano FAREJO!", "_blank");
             }}
             className="flex-1 font-bold"
             style={{ backgroundColor: "#C9A227", color: "#000" }}
@@ -193,7 +193,7 @@ export default function Planos() {
     const msg = encodeURIComponent(
       `Olá! Quero contratar o plano ${plan.emoji} ${plan.name} do FAREJO (R$ ${plan.price}/mês). Pode me ajudar?`
     );
-    window.open(`https://wa.me/5519997537883?text=${msg}`, "_blank");
+    window.open(`https://wa.me/5519996892382?text=${msg}`, "_blank");
   };
 
   const annualDiscount = 0.15; // 15% off on annual
@@ -401,7 +401,7 @@ export default function Planos() {
         <div className="mt-6 text-center">
           <p className="text-white/40 text-sm mb-3">Ainda tem dúvidas? Fale com um consultor FAREJO</p>
           <button
-            onClick={() => window.open("https://wa.me/5519997537883?text=Olá, quero saber mais sobre os planos FAREJO!", "_blank")}
+            onClick={() => window.open("https://wa.me/5519996892382?text=Olá, quero saber mais sobre os planos FAREJO!", "_blank")}
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all active:scale-95 hover:opacity-90"
             style={{ backgroundColor: "#25D366", color: "#fff" }}
           >
