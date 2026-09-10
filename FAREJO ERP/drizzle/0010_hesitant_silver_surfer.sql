@@ -1,1 +1,0 @@
-ALTER TABLE `tenants` ADD `plan` varchar(20) DEFAULT 'boi' NOT NULL;
